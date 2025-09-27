@@ -80,8 +80,20 @@ export async function GET(req: NextRequest) {
     return new NextResponse("invalid_sign", { status: 400 });
   }
 
-  // 金额校验
-  if (!payload.money || payload.money !== tx.money) {
+  // 金额校验 - 转换为数字进行比较，避免字符串格式差异
+  console.log("金额校验:", {
+    payload_money: payload.money,
+    tx_money: tx.money,
+    payload_money_type: typeof payload.money,
+    tx_money_type: typeof tx.money,
+    are_equal: payload.money === tx.money
+  });
+  
+  const payloadAmount = parseFloat(payload.money || "0");
+  const txAmount = parseFloat(tx.money || "0");
+  
+  if (!payload.money || isNaN(payloadAmount) || isNaN(txAmount) || payloadAmount !== txAmount) {
+    console.log("金额不匹配:", { payloadAmount, txAmount });
     return new NextResponse("amount_mismatch", { status: 400 });
   }
 
