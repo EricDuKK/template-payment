@@ -57,7 +57,7 @@ const products: Record<string, Product> = {
     name: "专业版AI编程教程 (年付)",
     title: "专业版",
     description: "获得完整课程内容和项目源码，一年内享受专业答疑服务。",
-    price: "1",
+    price: "0.3",
     priceLabel: "/年",
     isSubscription: true,
     subscriptionPeriod: "yearly",
