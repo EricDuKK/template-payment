@@ -23,6 +23,30 @@ function md5(input: string) {
   return createHash("md5").update(input, "utf8").digest("hex");
 }
 
+// 将参数排序并拼接为未编码的字符串（用于签名）
+function getSignPlain(params: Record<string, string | number | undefined | null>) {
+  const pairs: [string, string][] = [];
+  for (const key in params) {
+    const value = params[key];
+    if (value === undefined || value === null || value === "" || key === "sign" || key === "sign_type") continue;
+    pairs.push([key, String(value)]);
+  }
+  pairs.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  return pairs.map(([k, v]) => `${k}=${v}`).join("&");
+}
+
+// 将参数排序并进行 URL 编码（用于实际请求 URL）
+function getQueryStringEncoded(params: Record<string, string | number | undefined | null>) {
+  const pairs: [string, string][] = [];
+  for (const key in params) {
+    const value = params[key];
+    if (value === undefined || value === null || value === "") continue;
+    pairs.push([key, String(value)]);
+  }
+  pairs.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  return pairs.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
+}
+
 function generateOutTradeNo() {
   const now = new Date();
   const y = now.getFullYear();
@@ -76,7 +100,7 @@ export async function POST(req: NextRequest) {
     const out_trade_no = generateOutTradeNo();
     const type = (payType || "alipay") as "alipay" | "wxpay";
 
-    const notify_url = `${baseUrl}/api/checkout/providers/zpay/webhook`;
+    const notify_url = process.env.NOTIFY_URL || `${baseUrl}/api/checkout/providers/zpay/webhook`;
     const return_url = `${baseUrl}/payment/success`;
 
     const params: Record<string, string> = {
@@ -92,10 +116,11 @@ export async function POST(req: NextRequest) {
       param: `${auth.user.id}:${productId}`,
     } as Record<string, string>;
 
-    const str = getVerifyParams(params);
-    const sign = md5(str + key);
-
-    const payUrl = `https://zpayz.cn/submit.php?${str}&sign=${sign}&sign_type=MD5`;
+    // 先用未编码字符串参与签名，再拼接已编码查询串用于请求
+    const signPlain = getSignPlain(params);
+    const sign = md5(signPlain + key);
+    const queryEncoded = getQueryStringEncoded({ ...params, sign, sign_type: "MD5" });
+    const payUrl = `https://zpayz.cn/submit.php?${queryEncoded}`;
 
     // 记录交易(待支付)，使用管理员客户端写库
     const admin = createServerAdminClient();
