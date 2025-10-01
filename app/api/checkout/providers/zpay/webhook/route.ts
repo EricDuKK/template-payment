@@ -219,7 +219,14 @@ export async function GET(req: NextRequest) {
     sign_type: search.get("sign_type") || undefined,
   } as const;
   console.log("[zpay webhook][GET] payload=", payload);
-  return processNotification(payload);
+  const resp = await processNotification(payload);
+  if (resp.status === 200) {
+    const origin = new URL(req.url).origin;
+    const target = `${origin}/dashboard`;
+    const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8" /><meta http-equiv="refresh" content="1;url=${target}"><meta name="viewport" content="width=device-width, initial-scale=1"><title>支付成功</title><style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f7fafc;color:#1a202c} .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:32px;box-shadow:0 10px 20px rgba(0,0,0,.06);text-align:center} .ok{font-size:40px;color:#16a34a;margin-bottom:12px} a{color:#2563eb;text-decoration:none}</style></head><body><div class="card"><div class="ok">✓</div><h2>支付成功</h2><p>正在为你跳转到个人中心…</p><p><a href="${target}">若未跳转，点击前往</a></p><script>setTimeout(function(){location.href='${target}'},1000)</script></div></body></html>`;
+    return new NextResponse(html, { headers: { "content-type": "text/html; charset=utf-8" } });
+  }
+  return resp;
 }
 
 export async function POST(req: NextRequest) {
