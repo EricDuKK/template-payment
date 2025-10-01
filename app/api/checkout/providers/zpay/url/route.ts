@@ -101,7 +101,8 @@ export async function POST(req: NextRequest) {
     const type = (payType || "alipay") as "alipay" | "wxpay";
 
     const notify_url = process.env.NOTIFY_URL || `${baseUrl}/api/checkout/providers/zpay/webhook`;
-    const return_url = `${baseUrl}/payment/success`;
+    // 将回跳地址也设置为 webhook（可用 RETURN_URL 手动覆盖）
+    const return_url = process.env.RETURN_URL || notify_url;
 
     const params: Record<string, string> = {
       pid,
