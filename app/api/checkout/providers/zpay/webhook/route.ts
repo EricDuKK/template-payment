@@ -17,23 +17,19 @@ function md5(input: string) {
   return createHash("md5").update(input, "utf8").digest("hex");
 }
 
-export async function GET(req: NextRequest) {
+async function processNotification(payload: {
+  pid?: string;
+  name?: string;
+  money?: string;
+  out_trade_no?: string;
+  trade_no?: string;
+  param?: string;
+  trade_status?: string;
+  type?: string;
+  sign?: string;
+  sign_type?: string;
+}) {
   const admin = createServerAdminClient();
-  const url = new URL(req.url);
-  const search = url.searchParams;
-
-  const payload = {
-    pid: search.get("pid") || undefined,
-    name: search.get("name") || undefined,
-    money: search.get("money") || undefined,
-    out_trade_no: search.get("out_trade_no") || undefined,
-    trade_no: search.get("trade_no") || undefined,
-    param: search.get("param") || undefined,
-    trade_status: search.get("trade_status") || undefined,
-    type: search.get("type") || undefined,
-    sign: search.get("sign") || undefined,
-    sign_type: search.get("sign_type") || undefined,
-  } as const;
 
   const key = process.env.ZPAY_KEY;
   if (!key) {
@@ -205,5 +201,86 @@ export async function GET(req: NextRequest) {
   }
 
   return new NextResponse("success", { status: 200 });
+}
+
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const search = url.searchParams;
+  const payload = {
+    pid: search.get("pid") || undefined,
+    name: search.get("name") || undefined,
+    money: search.get("money") || undefined,
+    out_trade_no: search.get("out_trade_no") || undefined,
+    trade_no: search.get("trade_no") || undefined,
+    param: search.get("param") || undefined,
+    trade_status: search.get("trade_status") || undefined,
+    type: search.get("type") || undefined,
+    sign: search.get("sign") || undefined,
+    sign_type: search.get("sign_type") || undefined,
+  } as const;
+  console.log("[zpay webhook][GET] payload=", payload);
+  return processNotification(payload);
+}
+
+export async function POST(req: NextRequest) {
+  // zpay 可能以 application/x-www-form-urlencoded 发送通知
+  const contentType = req.headers.get("content-type") || "";
+  let payload: any = {};
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const text = await req.text();
+    const search = new URLSearchParams(text);
+    payload = {
+      pid: search.get("pid") || undefined,
+      name: search.get("name") || undefined,
+      money: search.get("money") || undefined,
+      out_trade_no: search.get("out_trade_no") || undefined,
+      trade_no: search.get("trade_no") || undefined,
+      param: search.get("param") || undefined,
+      trade_status: search.get("trade_status") || undefined,
+      type: search.get("type") || undefined,
+      sign: search.get("sign") || undefined,
+      sign_type: search.get("sign_type") || undefined,
+    } as const;
+  } else if (contentType.includes("application/json")) {
+    const json = await req.json().catch(() => ({} as any));
+    const search = new URLSearchParams(Object.entries(json).map(([k, v]) => [k, String(v ?? "")]));
+    payload = {
+      pid: search.get("pid") || undefined,
+      name: search.get("name") || undefined,
+      money: search.get("money") || undefined,
+      out_trade_no: search.get("out_trade_no") || undefined,
+      trade_no: search.get("trade_no") || undefined,
+      param: search.get("param") || undefined,
+      trade_status: search.get("trade_status") || undefined,
+      type: search.get("type") || undefined,
+      sign: search.get("sign") || undefined,
+      sign_type: search.get("sign_type") || undefined,
+    } as const;
+  } else {
+    // 兜底尝试 formData（Next 14 支持）
+    try {
+      const form = await req.formData();
+      const search = new URLSearchParams();
+      form.forEach((value, key) => {
+        search.set(key, String(value));
+      });
+      payload = {
+        pid: search.get("pid") || undefined,
+        name: search.get("name") || undefined,
+        money: search.get("money") || undefined,
+        out_trade_no: search.get("out_trade_no") || undefined,
+        trade_no: search.get("trade_no") || undefined,
+        param: search.get("param") || undefined,
+        trade_status: search.get("trade_status") || undefined,
+        type: search.get("type") || undefined,
+        sign: search.get("sign") || undefined,
+        sign_type: search.get("sign_type") || undefined,
+      } as const;
+    } catch {
+      // ignore
+    }
+  }
+  console.log("[zpay webhook][POST] payload=", payload);
+  return processNotification(payload);
 }
 
